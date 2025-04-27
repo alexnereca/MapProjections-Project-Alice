@@ -102,6 +102,8 @@ map::map_view get_view(sys::state& state) {
 		current_view = map::map_view::flat;
 	} else if(state.user_settings.map_is_globe == sys::projection_mode::globe_perpect) {
 		current_view = map::map_view::globe_perspect;
+	} else if(state.user_settings.map_is_globe == sys::projection_mode::globe_eighths) {
+		current_view = map::map_view::globe_eighths;
 	}
 
 	return current_view;

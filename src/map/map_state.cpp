@@ -31,6 +31,8 @@ map_view map_state::current_view(sys::state& state) {
 		current_view = map::map_view::flat;
 	} else if(state.user_settings.map_is_globe == sys::projection_mode::globe_perpect) {
 		current_view = map::map_view::globe_perspect;
+	} else if(state.user_settings.map_is_globe == sys::projection_mode::globe_eighths) {
+		current_view = map::map_view::globe_eighths;
 	}
 	return current_view;
 }
@@ -1657,7 +1659,7 @@ void map_state::on_mouse_move(int32_t x, int32_t y, int32_t screen_size_x, int32
 }
 
 bool map_state::screen_to_map(glm::vec2 screen_pos, glm::vec2 screen_size, map_view view_mode, glm::vec2& map_pos) {
-	if(view_mode == map_view::globe) {
+	if(view_mode == map_view::globe || view_mode == map_view::globe_eighths) {
 		screen_pos -= screen_size * 0.5f;
 		screen_pos /= screen_size;
 		screen_pos.x *= screen_size.x / screen_size.y;
@@ -1832,6 +1834,7 @@ dcon::province_id map_state::get_province_under_mouse(sys::state& state, int32_t
 bool map_state::map_to_screen(sys::state& state, glm::vec2 map_pos, glm::vec2 screen_size, glm::vec2& screen_pos) {
 	switch(state.user_settings.map_is_globe) {
 	case sys::projection_mode::globe_ortho:
+	case sys::projection_mode::globe_eighths:
 		{
 			glm::vec3 cartesian_coords;
 			float section = 200;
@@ -1981,6 +1984,87 @@ bool map_state::map_to_screen(sys::state& state, glm::vec2 map_pos, glm::vec2 sc
 				return false;
 			return true;
 		}
+	/*case sys::projection_mode::globe_eighths:
+		{
+			glm::vec3 cartesian_coords;
+			float section = 200/4;
+			float pi = glm::pi<float>();
+
+			*float rotNEE = -10.f * (pi / 180);
+			float rotNE = -10.f * (pi/180);
+			float rotNW = 10.f * (pi/180);
+			float rotNWW = 10.f * (pi/180);
+			float rotSEE = 10.f * (pi/180);
+			float rotSE = -10.f * (pi/180);
+			float rotSW = 10.f * (pi/180);
+			float rotSWW = -10.f * (pi/180);
+
+			float rotation;
+			if(map_pos.y > 0.5f) {
+				if(map_pos.x > 0.25f)
+					rotation = rotNEE;
+				else if(map_pos.x > 0.0f)
+					rotation = rotNE;
+				else if(map_pos.x > -0.25f)
+					rotation = rotNW;
+				else
+					rotation = rotNWW;
+			} else {
+				if(map_pos.x > 0.25f)
+					rotation = rotSEE;
+				else if(map_pos.x > 0.0f)
+					rotation = rotSE;
+				else if(map_pos.x > -0.25f)
+					rotation = rotSW;
+				else
+					rotation = rotSWW;
+			}
+
+			float angle_x1 = pi/2 * std::floor(map_pos.x * section) / section;
+			float angle_x2 = pi/2 * std::floor(map_pos.x * section + 1) / section;
+			if(!std::isfinite(angle_x1)) {
+				assert(false);
+				angle_x1 = 0.0f;
+			}
+			if(!std::isfinite(angle_x2)) {
+				assert(false);
+				angle_x2 = 0.0f;
+			}
+			if(!std::isfinite(map_pos.x)) {
+				assert(false);
+				map_pos.x = 0.0f;
+			}
+			if(!std::isfinite(map_pos.y)) {
+				assert(false);
+				map_pos.y = 0.0f;
+			}
+			float x = std::lerp(std::cos(angle_x1), std::cos(angle_x2), std::fmod(map_pos.x * section, 1.f));
+			float y = std::lerp(std::sin(angle_x1), std::sin(angle_x2), std::fmod(map_pos.x * section, 1.f));
+			cartesian_coords.x = x * std::cos(rotation) - y * std::sin(rotation);
+			cartesian_coords.y = x * std::sin(rotation) + y * std::cos(rotation);
+
+			float angle_y = (1.f - map_pos.y) * pi;
+			cartesian_coords.x *= std::sin(angle_y);
+			cartesian_coords.y *= std::sin(angle_y);
+			cartesian_coords.z = std::cos(angle_y);
+			cartesian_coords = glm::mat3(globe_rotation) * cartesian_coords;
+			cartesian_coords /= glm::pi<float>();
+			cartesian_coords.x *= -1;
+			cartesian_coords.y *= -1;
+			if(cartesian_coords.y > 0) {
+				return false;
+			}
+			cartesian_coords += glm::vec3(0.5f);
+
+			screen_pos = glm::vec2(cartesian_coords.x, cartesian_coords.z);
+			screen_pos = (2.f * screen_pos - glm::vec2(1.f));
+			screen_pos *= zoom;
+			screen_pos.x *= screen_size.y / screen_size.x;
+			screen_pos = ((screen_pos + glm::vec2(1.f)) * 0.5f);
+			screen_pos *= screen_size;
+
+			return true;
+		}*/
 	case sys::projection_mode::num_of_modes:
 		return false;
 	default:

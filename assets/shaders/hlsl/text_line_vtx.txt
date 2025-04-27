@@ -9,7 +9,7 @@ struct Input {
 	float2 texture_coord:SV_Target3;
 	float codepoint_tn:SV_Target4;
 	float thickness:SV_Target5;
-	bool is_globe_map;
+	uint is_globe_map;
 };
 
 struct Output {
@@ -63,8 +63,43 @@ float4 flat_coords(float2 world_pos) {
 		0.0, 1.0);
 }
 
-float4 calc_gl_position(float2 world_pos, bool is_globe_map) {
-	return is_globe_map ? globe_coords(world_pos) : flat_coords(world_pos);
+float4 globe_eighths_coords(float2 world_pos) {
+
+	float3 new_world_pos;
+	float section_x = 200;
+	float angle_x1 = 2 * PI * floor(world_pos.x * section_x) / section_x;
+	float angle_x2 = 2 * PI * floor(world_pos.x * section_x + 1) / section_x;
+	float angle_x = lerp(angle_x1, angle_x2, fmod(world_pos.x * section_x, 1));
+	new_world_pos.x = lerp(cos(angle_x1), cos(angle_x2), fmod(world_pos.x * section_x, 1));
+	new_world_pos.y = lerp(sin(angle_x1), sin(angle_x2), fmod(world_pos.x * section_x, 1));
+	float section_y = 200;
+	float angle_y1 = PI * floor(world_pos.y * section_y) / section_y;
+	float angle_y2 = PI * floor(world_pos.y * section_y + 1) / section_y;
+	new_world_pos.x *= lerp(sin(angle_y1), sin(angle_y2), fmod(world_pos.y * section_y, 1));
+	new_world_pos.y *= lerp(sin(angle_y1), sin(angle_y2), fmod(world_pos.y * section_y, 1));
+	new_world_pos.z = lerp(cos(angle_y1), cos(angle_y2), fmod(world_pos.y * section_y, 1));
+	new_world_pos =  new_world_pos * rotation;
+	new_world_pos /= PI; 		// Will make the zoom be the same for the globe and flat map
+	new_world_pos.y *= 0.02; 	// Sqeeze the z coords. Needs to be between -1 and 1
+	new_world_pos.xz *= -1; 	// Invert the globe
+	new_world_pos.xyz += 0.5; 	// Move the globe to the center
+
+	return float4(
+		(2. * new_world_pos.x - 1.f) / aspect_ratio  * zoom,
+		(2. * new_world_pos.z - 1.f) * zoom,
+		(2. * new_world_pos.y - 1.f), 1.0);
+}
+
+float4 calc_gl_position(float2 world_pos, uint is_globe_map) {
+	switch(input.is_globe_map) {
+	case 0:
+	case 1:
+		return globe_coords(world_pos);
+	case 2:
+		return globe_eighths_coords(world_pos);
+	default:
+		return flat_coords(world_pos);
+	}
 }
 
 // The borders are drawn by seperate quads.

@@ -81,11 +81,108 @@ vec4 perspective_coords() {
 	return vec4(new_world_pos, w);
 }
 
+vec4 globe_eighths_coords() {
+	//draw sphere
+	vec3 new_world_pos;
+	float angle_x = 2 * vertex_position.x * PI;
+	new_world_pos.x = cos(angle_x);
+	new_world_pos.y = sin(angle_x);
+
+	float angle_y = vertex_position.y * PI;
+	new_world_pos.x *= sin(angle_y);
+	new_world_pos.y *= sin(angle_y);
+	new_world_pos.z = cos(angle_y);
+
+	new_world_pos.xz *= -1; 	// Invert the globe
+
+	//Determine which quarter-hemisphere (eighths) and adjust transformations accordingly
+	float rotNEE = radians(10.f);
+	float rotNE = radians(10.f);
+	float rotNW = radians(-10.f);
+	float rotNWW = radians(-10.f);
+	float rotSEE = radians(-10.f);
+	float rotSE = radians(10.f);
+	float rotSW = radians(-10.f);
+	float rotSWW = radians(10.f);
+	vec2 midpoint_vertex = vec2(0.0f, 0.0f);
+	float eighth_rotation = 0.0f;
+	if(vertex_position.y < 0.125f) {
+		new_world_pos.y -= 100.f;	//don't render the antarctic
+	} else if(vertex_position.y < 0.5125f) {
+		midpoint_vertex.y = 0.31875f;
+		if (vertex_position.x < 0.25f) {
+			midpoint_vertex.x = -0.625f;
+			eighth_rotation = rotSWW;
+			new_world_pos.xy *= -1;
+		} else if(vertex_position.x < 0.5f) {
+			midpoint_vertex.x = -0.375f;
+			eighth_rotation = rotSW;
+			new_world_pos.xy *= -1;
+		} else if(vertex_position.x < 0.75f) {
+			midpoint_vertex.x = 0.375f;
+			eighth_rotation = rotSE;
+		} else {
+			midpoint_vertex.x = 0.625f;
+			eighth_rotation = rotSEE;
+		}
+	} else if(vertex_position.y < 0.90f) {
+		midpoint_vertex.y = 0.70625f;
+		if (vertex_position.x < 0.25f) {
+			midpoint_vertex.x = -0.625f;
+			eighth_rotation = rotNWW;
+			new_world_pos.xy *= -1;
+		} else if(vertex_position.x < 0.5f) {
+			midpoint_vertex.x = -0.375f;
+			eighth_rotation = rotNW;
+			new_world_pos.xy *= -1;
+		} else if(vertex_position.x < 0.75f) {
+			midpoint_vertex.x = 0.375f;
+			eighth_rotation = rotNE;
+		} else {
+			midpoint_vertex.x = 0.625f;
+			eighth_rotation = rotNEE;
+		}
+	} else {
+		new_world_pos.y -= 100.f;	//don't render the arctic
+	}
+
+	//reorient everything so midpoint is directly facing the camera
+	float midpoint_angle_x = -2 * midpoint_vertex.x * PI;
+	float midpoint_angle_y = -midpoint_vertex.y * PI;
+	mat4 reorient = mat4(
+	cos(midpoint_angle_x),	-sin(midpoint_angle_x),	0.0f,					0.0f,
+	sin(midpoint_angle_x),	cos(midpoint_angle_x),	0.0f,					0.0f,
+	0.0f,					0.0f,					1.0f,					0.0f,
+	0.0f,					0.0f,					0.0f,					1.0f)/*
+	* mat4(
+	1.0f,					0.0f,					0.0f,					0.0f,
+	0.0f,					cos(midpoint_angle_y),	-sin(midpoint_angle_y),	0.0f,
+	0.0f,					sin(midpoint_angle_y),	cos(midpoint_angle_y),	1.0f,
+	0.0f,					0.0f,					0.0f,					1.0f)*/;
+	new_world_pos = vec3(reorient * vec4(new_world_pos, 0.0f));
+	new_world_pos.x += midpoint_vertex.x;
+
+	//rotate as per projection settings
+	mat4 rotate = mat4(
+	cos(eighth_rotation),	0.0f,	sin(eighth_rotation),	0.0f,
+	0.0f,					1.0f,	0.0f,					0.0f,
+	-sin(eighth_rotation),	0.0f,	cos(eighth_rotation),	0.0f,
+	0.0f,					0.0f,	0.0f,					1.0f);
+	new_world_pos = vec3(rotate * vec4(new_world_pos, 0.0f));
+
+	return vec4(
+		new_world_pos.x / aspect_ratio * zoom,
+		new_world_pos.z * zoom,
+		new_world_pos.y,
+		1.0f);
+}
+
 vec4 calc_gl_position() {
 	switch(int(subroutines_index)) {
 case 0: return globe_coords();
 case 1: return perspective_coords();
-case 2: return flat_coords();
+case 2: return globe_eighths_coords();
+case 3: return flat_coords();
 default: break;
 	}
 	return vec4(0.f);

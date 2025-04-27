@@ -49,11 +49,34 @@ vec4 flat_coords(vec3 world_pos) {
 	);
 }
 
+vec4 globe_eighths_coords(vec3 world_pos) {
+    vec3 new_world_pos;
+    float angle_x = 2 * world_pos.x * PI;
+    new_world_pos.x = cos(angle_x);
+    new_world_pos.y = sin(angle_x);
+
+    float angle_y = world_pos.z * PI;
+    new_world_pos.x *= sin(angle_y);
+    new_world_pos.y *= sin(angle_y);
+    new_world_pos.z = cos(angle_y);
+    new_world_pos = rotation * new_world_pos;
+    new_world_pos /= PI;         // Will make the zoom be the same for the globe and flat map
+    new_world_pos *= (1 + world_pos.y);
+    new_world_pos.y *= 0.02;     // Sqeeze the z coords. Needs to be between -1 and 1
+    new_world_pos.xz *= -1;     // Invert the globe
+    new_world_pos.xyz += 0.5;     // Move the globe to the center
+    return vec4(
+        (2.f * new_world_pos.x - 1.f) / aspect_ratio  * zoom,
+        (2.f * new_world_pos.z - 1.f) * zoom,
+        (2.f * new_world_pos.y - 1.f), 1.0);
+}
+
 vec4 calc_gl_position(vec3 world_pos) {
 	switch(int(subroutines_index)) {
 case 0: return globe_coords(world_pos);
 //TODO: case 1: return perspective_coords(world_pos);
-case 2: return flat_coords(world_pos);
+case 2: return globe_eighths_coords(world_pos);
+case 3: return flat_coords(world_pos);
 default: break;
 	}
 	return vec4(0.f);
