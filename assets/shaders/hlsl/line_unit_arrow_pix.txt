@@ -1,6 +1,6 @@
 struct Input {
 	float2 text_coord;
-	bool is_globe_map;
+	uint is_globe_map;
 };
 
 struct Output {

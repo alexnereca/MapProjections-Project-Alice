@@ -14,7 +14,7 @@ struct scenario_building_context;
 
 namespace map {
 
-enum class map_view { globe, globe_perspect, flat };
+enum class map_view { globe, globe_perspect, armadillo, flat};
 class map_state {
 public:
 	map_state(){};

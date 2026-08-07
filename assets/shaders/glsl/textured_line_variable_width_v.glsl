@@ -83,11 +83,35 @@ vec4 perspective_coords(vec2 world_pos) {
 	return vec4(new_world_pos, w);
 }
 
+vec4 armadillo_coords(vec2 world_pos) {
+	vec3 new_world_pos;
+	float angle_x = 2*(vertex_position.x)*PI;
+	float angle_y = (vertex_position.y - 0.5)*PI;
+	float longitude = 2*(offset.x)*PI;
+	float latitude = -(offset.y)*PI;
+
+	new_world_pos.x = (1 + cos(angle_y)) * sin((mod(angle_x - longitude, 2*PI) - PI)/2);
+	new_world_pos.z = (1 + sin(latitude) - cos(latitude))/2 + sin(angle_y)*cos(latitude) - (1 + cos(angle_y))*sin(latitude)*cos((mod(angle_x - longitude, 2*PI) - PI)/2);
+	
+	new_world_pos.y = 0;
+	if(angle_y < -atan(sin((mod(angle_x - longitude, 2*PI) - PI)/2) / tan(latitude)))
+		new_world_pos.y = -1;
+	
+	new_world_pos /= PI/2; 		// Will make the zoom be the same for the globe and flat map
+	
+	return vec4(
+		new_world_pos.x / aspect_ratio * zoom,
+		new_world_pos.z * zoom,
+		new_world_pos.y,
+		1.0);
+}
+
 vec4 calc_gl_position(vec2 world_pos) {
 	switch(int(subroutines_index)) {
 case 0: return globe_coords(world_pos);
 case 1: return perspective_coords(world_pos);
-case 2: return flat_coords(world_pos);
+case 2: return armadillo_coords(world_pos);
+case 3: return flat_coords(world_pos);
 default: break;
 	}
 	return vec4(0.f);

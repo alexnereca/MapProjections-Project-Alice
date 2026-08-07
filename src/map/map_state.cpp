@@ -31,6 +31,8 @@ map_view map_state::current_view(sys::state& state) {
 		current_view = map::map_view::flat;
 	} else if(state.user_settings.map_is_globe == sys::projection_mode::globe_perpect) {
 		current_view = map::map_view::globe_perspect;
+	} else if(state.user_settings.map_is_globe == sys::projection_mode::armadillo) {
+		current_view = map::map_view::armadillo;
 	}
 	return current_view;
 }
@@ -1681,7 +1683,7 @@ bool map_state::screen_to_map(glm::vec2 screen_pos, glm::vec2 screen_size, map_v
 			return true;
 		}
 		return false;
-	} else if (view_mode == map_view::globe_perspect) {
+	} else if(view_mode == map_view::globe_perspect) {
 		float aspect_ratio = screen_size.x / screen_size.y;
 		float pi = glm::pi<float>();
 
@@ -1724,6 +1726,27 @@ bool map_state::screen_to_map(glm::vec2 screen_pos, glm::vec2 screen_size, map_v
 			return true;
 		}
 		return false;
+	} else if (view_mode == map_view::armadillo) {
+		float pi = glm::pi<float>();
+		float aspect_ratio = screen_size.x / screen_size.y;
+
+		glm::vec2 cartesian_coords;
+		float angle_x = 2 * (screen_pos.x) * pi;
+		float angle_y = (screen_pos.y - 0.5f) * pi;
+		float longitude = 2 * (pos.x) * pi;
+		float latitude = -(pos.y) * pi;
+
+		auto arithmod = [](float x, float y) { return x - y * floor(x / y); };
+
+		cartesian_coords.x = (1 + cos(angle_y)) * sin((arithmod(angle_x - longitude, 2 * pi) - pi) / 2);
+		cartesian_coords.y = (1 + sin(latitude) - cos(latitude)) / 2 + sin(angle_y) * cos(latitude) - (1 + cos(angle_y)) * sin(latitude) * cos((arithmod(angle_x - longitude, 2 * pi) - pi) / 2);
+
+		cartesian_coords /= pi / 2; 		// Will make the zoom be the same for the globe and flat map
+
+		cartesian_coords.x /= aspect_ratio * zoom;
+		cartesian_coords.y *= zoom;
+		map_pos = cartesian_coords;
+		return (map_pos.x >= 0 && map_pos.y >= 0 && map_pos.x <= map_data.size_x && map_pos.y <= map_data.size_y);
 	} else {
 		screen_pos -= screen_size * 0.5f;
 		screen_pos /= screen_size;
@@ -1979,6 +2002,35 @@ bool map_state::map_to_screen(sys::state& state, glm::vec2 map_pos, glm::vec2 sc
 				return false;
 			if(screen_pos.y <= float(std::numeric_limits<int16_t>::min() / 2))
 				return false;
+			return true;
+		}
+	case sys::projection_mode::armadillo:
+		{
+			float pi = glm::pi<float>();
+			float aspect_ratio = screen_size.x / screen_size.y;
+
+			glm::vec3 cartesian_coords;
+			float angle_x = 2 * (map_pos.x) * pi;
+			float angle_y = (map_pos.y - 0.5f) * pi;
+			float longitude = 2 * (pos.x) * pi;
+			float latitude = -(pos.y) * pi;
+
+			auto arithmod = [](float x, float y) { return x - y * floor(x / y); };
+
+			cartesian_coords.x = (1 + cos(angle_y)) * sin((arithmod(angle_x - longitude, 2*pi) - pi) / 2);
+			cartesian_coords.y = (1 + sin(latitude) - cos(latitude)) / 2 + sin(angle_y) * cos(latitude) - (1 + cos(angle_y)) * sin(latitude) * cos((arithmod(angle_x - longitude, 2*pi) - pi) / 2);
+
+			cartesian_coords.z = 0;
+			if(angle_y < -atan(sin((arithmod(angle_x - longitude, 2 * pi) - pi) / 2) / tan(latitude)))
+				cartesian_coords.z = -1;
+
+			cartesian_coords /= pi / 2; 		// Will make the zoom be the same for the globe and flat map
+
+			cartesian_coords.x /= aspect_ratio * zoom;
+			cartesian_coords.y *= zoom;
+
+			screen_pos = cartesian_coords;
+			
 			return true;
 		}
 	case sys::projection_mode::num_of_modes:

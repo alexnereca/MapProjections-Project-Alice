@@ -4,7 +4,7 @@
 // Goes from 0 to 1
 struct Input {
 	float2 vertex_position:SV_Target0;
-	bool is_globe_map;
+	uint is_globe_map;
 };
 // layout (location = 1) in float2 v_tex_coord;
 
@@ -55,9 +55,40 @@ float4 flat_coords(float2 vertex_position) {
 		1.0);
 }
 
+float4 armadillo_coords(float2 vertex_position) {
+	float3 new_world_pos;
+	float angle_x = 2*(vertex_position.x)*PI;
+	float angle_y = (vertex_position.y - 0.5)*PI;
+	float longitude = 2*(offset.x)*PI;
+	float latitude = -(offset.y)*PI;
+
+	new_world_pos.x = (1 + cos(angle_y)) * sin((mod(angle_x - longitude, 2*PI) - PI)/2);
+	new_world_pos.z = (1 + sin(latitude) - cos(latitude))/2 + sin(angle_y)*cos(latitude) - (1 + cos(angle_y))*sin(latitude)*cos((mod(angle_x - longitude, 2*PI) - PI)/2);
+	
+	new_world_pos.y = 0;
+	if(angle_y < -atan(sin((mod(angle_x - longitude, 2*PI) - PI)/2) / tan(latitude)))
+		new_world_pos.y = -1;
+	
+	new_world_pos /= PI/2; 		// Will make the zoom be the same for the globe and flat map
+	
+	return float4(
+		new_world_pos.x / aspect_ratio * zoom,
+		new_world_pos.z * zoom,
+		new_world_pos.y,
+		1.0);
+}
+
 Output main(Input input) {
 	Output output;
-	output.position = input.is_globe_map ? globe_coords(input.vertex_position) : flat_coords(input.vertex_position);
+	switch(input.is_globe_map) {
+	case 0:
+	case 1:
+		output.position = globe_coords(input.vertex_position);
+	case 2:
+		output.position = armadillo_coords(input.vertex_position);
+	default:
+		output.position = flat_coords(input.vertex_position);
+	}
 	output.tex_coord = input.vertex_position;
 	return output;
 }
